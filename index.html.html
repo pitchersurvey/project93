@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PitchIQ — 투수 부상 위험 & 퍼포먼스 자가 진단</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #f0f0f0;
+  --text2: #888;
+  --text3: #555;
+  --accent: #e8ff47;
+  --red: #ff4444;
+  --green: #47ff8a;
+  --blue: #4488ff;
+  --amber: #ffaa33;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.6; min-height: 100vh; }
+
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0;
+  background: rgba(10,10,10,0.96);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+}
+.logo { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); letter-spacing: 0.08em; }
+.prog-wrap { display: flex; align-items: center; gap: 10px; }
+.prog-text { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+.prog-bar { width: 100px; height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+
+.hero { padding: 64px 24px 48px; max-width: 720px; margin: 0 auto; }
+.hero-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; }
+.hero h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 600; line-height: 1.15; margin-bottom: 14px; letter-spacing: -0.02em; }
+.hero h1 span { color: var(--accent); }
+.hero p { color: var(--text2); font-size: 14px; max-width: 500px; line-height: 1.7; margin-bottom: 24px; }
+.badges { display: flex; flex-wrap: wrap; gap: 7px; }
+.badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; border: 1px solid; }
+.badge-vel { color: #47ff8a; border-color: rgba(71,255,138,0.3); background: rgba(71,255,138,0.07); }
+.badge-inj { color: #ff7777; border-color: rgba(255,119,119,0.3); background: rgba(255,119,119,0.07); }
+.badge-both { color: #b8a4ff; border-color: rgba(184,164,255,0.3); background: rgba(184,164,255,0.07); }
+.badge-stab { color: #ffaa33; border-color: rgba(255,170,51,0.3); background: rgba(255,170,51,0.07); }
+
+.main { max-width: 720px; margin: 0 auto; padding: 0 24px 80px; }
+.section { margin-bottom: 40px; }
+.sec-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.sec-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 0.1em; }
+.sec-title { font-size: 14px; font-weight: 500; }
+.sec-desc { font-size: 11px; color: var(--text3); margin-left: auto; }
+
+.q-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 10px; transition: border-color 0.2s; }
+.q-card.answered { border-color: rgba(232,255,71,0.15); }
+.q-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.q-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+.q-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+.q-text { font-size: 14px; font-weight: 500; line-height: 1.6; margin-bottom: 10px; }
+.q-sub { font-size: 12px; color: var(--text2); margin-bottom: 12px; line-height: 1.6; padding: 8px 12px; background: var(--bg3); border-radius: var(--radius-sm); border-left: 2px solid var(--border2); }
+
+.bench-wrap { margin-bottom: 12px; overflow-x: auto; }
+.bench-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bench-table th { text-align: left; padding: 6px 10px; color: var(--text3); font-weight: 500; background: var(--bg3); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.05em; }
+.bench-table td { padding: 6px 10px; border-top: 1px solid var(--border); color: var(--text2); }
+.bench-table tr:last-child td { color: var(--accent); font-weight: 500; }
+
+.opts { display: flex; flex-direction: column; gap: 6px; }
+.opt { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: var(--text2); background: transparent; text-align: left; width: 100%; transition: all 0.15s; line-height: 1.5; }
+.opt:hover { border-color: var(--border2); color: var(--text); background: var(--bg3); }
+.opt.sel { border-color: var(--accent); background: rgba(232,255,71,0.06); color: var(--accent); }
+.opt-k { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); min-width: 16px; padding-top: 1px; flex-shrink: 0; }
+.opt.sel .opt-k { color: var(--accent); }
+.q-note { font-size: 11px; color: var(--text3); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); line-height: 1.6; }
+
+.submit-wrap { padding: 24px 0; }
+.submit-btn { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; color: #0a0a0a; font-family: 'DM Sans', sans-serif; letter-spacing: -0.01em; transition: all 0.2s; }
+.submit-btn:hover:not(:disabled) { background: #f5ff6e; transform: translateY(-1px); }
+.submit-btn:disabled { opacity: 0.2; cursor: not-allowed; transform: none; }
+
+/* RESULT */
+.result { padding: 40px 0; }
+.r-hero { margin-bottom: 28px; padding: 32px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; }
+.r-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), transparent); }
+.r-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; }
+.r-type { font-size: 22px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.02em; line-height: 1.3; }
+.r-desc { font-size: 13px; color: var(--text2); line-height: 1.75; max-width: 560px; }
+
+/* RADAR */
+.radar-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; }
+.radar-title { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; align-self: flex-start; }
+#radarChart { max-width: 320px; width: 100%; }
+.radar-legend { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; width: 100%; margin-top: 20px; }
+.rl-item { background: var(--bg3); border-radius: var(--radius-sm); padding: 10px 12px; }
+.rl-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+.rl-val { font-size: 16px; font-weight: 600; font-family: 'DM Mono', monospace; }
+
+.alert { padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 12px; line-height: 1.7; border: 1px solid; }
+.alert-red { background: rgba(255,68,68,0.08); border-color: rgba(255,68,68,0.25); color: #ff9999; }
+.alert-amber { background: rgba(255,170,51,0.08); border-color: rgba(255,170,51,0.25); color: #ffbb66; }
+.alert-green { background: rgba(71,255,138,0.08); border-color: rgba(71,255,138,0.25); color: #66ffaa; }
+
+.tag-row { margin-bottom: 14px; }
+.tag-lbl { font-size: 11px; font-weight: 500; color: var(--text3); margin-bottom: 6px; font-family: 'DM Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; }
+.tag { display: inline-block; font-size: 11px; padding: 4px 10px; border-radius: 20px; margin: 3px 3px 0 0; font-weight: 500; }
+.tag-risk { background: rgba(255,68,68,0.1); color: #ff9999; border: 1px solid rgba(255,68,68,0.2); }
+.tag-fix { background: rgba(71,255,138,0.08); color: #66ffaa; border: 1px solid rgba(71,255,138,0.2); }
+
+.detail-block { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+.detail-header { padding: 12px 20px; font-size: 11px; font-weight: 500; color: var(--text3); background: var(--bg3); border-bottom: 1px solid var(--border); font-family: 'DM Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+.detail-body { padding: 20px; font-size: 13px; color: var(--text2); line-height: 1.9; }
+.detail-body b { color: var(--text); font-weight: 500; }
+
+/* WEEKLY PROGRAM */
+.program-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 16px 20px; }
+.day-card { background: var(--bg3); border-radius: var(--radius-sm); padding: 14px; }
+.day-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.day-items { list-style: none; }
+.day-items li { font-size: 12px; color: var(--text2); padding: 3px 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
+.day-items li:last-child { border-bottom: none; }
+.day-items li::before { content: '—'; color: var(--text3); margin-right: 6px; font-family: 'DM Mono', monospace; }
+
+.prio-item { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.prio-item:last-child { border-bottom: none; }
+.prio-tag { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+.prio-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.prio-desc { font-size: 12px; color: var(--text2); line-height: 1.7; }
+
+/* FEEDBACK */
+.feedback-block { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-top: 24px; text-align: center; }
+.feedback-title { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.feedback-desc { font-size: 13px; color: var(--text2); margin-bottom: 20px; line-height: 1.6; }
+.feedback-btn { display: inline-block; padding: 13px 32px; background: transparent; border: 1px solid var(--accent); border-radius: var(--radius); font-size: 13px; font-weight: 500; color: var(--accent); text-decoration: none; font-family: 'DM Sans', sans-serif; transition: all 0.2s; cursor: pointer; }
+.feedback-btn:hover { background: rgba(232,255,71,0.08); }
+
+.reset-btn { display: block; width: 100%; padding: 14px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); font-size: 13px; color: var(--text2); cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 10px; transition: all 0.15s; }
+.reset-btn:hover { border-color: var(--border2); color: var(--text); background: var(--bg2); }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PITCHER / ASSESSMENT v7.0</div>
+  <div class="prog-wrap">
+    <span class="prog-text" id="prog-txt">0 / 36</span>
+    <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="hero">
+    <div class="hero-label">Sports Science Based Evaluation</div>
+    <h1>투수 부상 위험 &<br><span>퍼포먼스 자가 진단</span></h1>
+    <p>바이오메카닉스 + 스포츠 과학 논문 기반의 투수 전용 자가 진단.<br>메카닉 파트는 실제 감각 그대로, 피지컬 파트는 테스트 후 답하세요.</p>
+    <div class="badges">
+      <span class="badge badge-vel">구속</span>
+      <span class="badge badge-inj">부상예방</span>
+      <span class="badge badge-both">구속+부상예방</span>
+      <span class="badge badge-stab">안정성</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="questions"></div>
+    <div class="submit-wrap">
+      <button class="submit-btn" id="submit-btn" disabled onclick="showResult()">결과 분석하기 →</button>
+    </div>
+    <div id="result"></div>
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  {
+    num:'01', title:'정적 자세 & 기본 움직임 패턴', desc:'일상 움직임 기반 스크리닝',
+    qs:[
+      {id:'q1',badge:'bi',q:'팔을 옆으로 들어올릴 때 어깨가 어떻게 되나요?',
+       opts:['어깨 전체가 귀 쪽으로 같이 올라간다','어깨는 거의 그대로, 팔만 올라간다','확인하기 어렵다'],
+       note:'견갑골 상방회전 패턴 — A는 상부 승모근 우세·전거근 약화. 투구 가속 구간에서 팔꿈치 부담 증가'},
+      {id:'q2',badge:'bi',q:'바닥에 있는 물건을 집을 때 자연스럽게 어떻게 하나요?',
+       opts:['허리를 앞으로 숙여서 든다','무릎을 굽히고 엉덩이를 뒤로 빼며 내려간다','무릎을 굽히지만 상체도 많이 숙인다'],
+       note:'힙 힌지 패턴 — 투구 로딩 단계 햄스트링·둔근 활성화와 직결'},
+      {id:'q3',badge:'bi',q:'등을 벽에 기대고 서서 어깨뼈 상태를 확인해보세요.',
+       sub:'거울로 뒷모습을 보거나 다른 사람에게 확인해달라 해도 됩니다.',
+       opts:['한쪽 어깨뼈가 날개처럼 뜨거나 튀어나와 있다','양쪽이 비슷하게 납작하게 붙어 있다'],
+       note:'견갑골 이상운동(Scapular Dyskinesis) 선별 — 이 패턴 있는 투수 어깨 부상 위험 25~43% 증가 (Hickey et al., 2018)'},
+      {id:'q4',badge:'bi',q:'앞으로 숙였다가 상체를 펼 때 어느 부위가 먼저 움직이나요?',
+       opts:['허리(요추)가 먼저 꺾인다','엉덩이가 먼저 열리며 허리가 따라온다','잘 구분이 안 된다'],
+       note:'요추-골반 리듬 — A는 요추 과가동성·고관절 가동범위 부족 패턴'},
+    ]
+  },
+  {
+    num:'02', title:'투구 메카닉스 — 로딩 & 스트라이드', desc:'힘 저장 구간 감각 기술형',
+    qs:[
+      {id:'q5',badge:'bb',q:'뒷발로 지면을 밀 때 힘이 어느 방향으로 향하나요?',
+       sub:'눈을 감고 실제 동작을 천천히 재현하며 느껴보세요.',
+       opts:['위로 솟구치는 느낌 — 몸이 뜬다','홈 플레이트 방향으로 밀리는 느낌','힘이 분산되어 방향을 잘 모르겠다'],
+       note:'지면반력 방향 — A는 수직력 손실. 이상적 스트라이드 길이 신장의 80~87% (Fleisig et al., 프로 평균 83%)'},
+      {id:'q6',badge:'bb',q:'스트라이드 발이 착지하는 위치는 어디인가요?',
+       sub:'착지 발이 뒷발과 비교해 어느 방향에 내려가는지 느껴보세요.',
+       opts:['몸 안쪽(글러브 쪽)으로 교차해서 착지한다','뒷발과 거의 일직선으로 착지한다','몸 바깥쪽(팔 쪽)으로 벌어진다'],
+       note:'착지 발 위치 — A(크로스오버)는 골반 회전을 막아 구속 손실. B가 이상적'},
+      {id:'q7',badge:'bb',q:'착지 발의 발끝이 어느 방향을 향하나요?',
+       opts:['홈 방향으로 정면을 향한다','홈 방향에서 10~20° 안쪽(닫힘)을 향한다','홈 방향에서 바깥(열림)으로 크게 향한다'],
+       note:'착지 발 각도 — B(약간 닫힘)가 이상적. A는 조기 골반 개방, C는 발목·무릎 스트레스'},
+      {id:'q8',badge:'bb',q:'착지 순간 골반(배꼽)이 어느 방향을 향하고 있나요? (우투수 기준)',
+       sub:'착지 순간의 감각을 떠올려 보세요.',
+       opts:['이미 홈 방향으로 완전히 열려 있다','3루 방향으로 약간 닫혀 있다 (30~40° 정도)','타자와 거의 정면으로 마주하고 있다'],
+       note:'착지 시 골반 각도 — B가 최적 (프로 평균 33±10° 개방). A는 hip-shoulder separation 소멸 → UCL varus torque 급증'},
+    ]
+  },
+  {
+    num:'03', title:'투구 메카닉스 — 가속 & 릴리즈', desc:'힘 전달·팔 경로 감각 기술형',
+    qs:[
+      {id:'q9',badge:'bb',q:'착지 후 골반이 먼저 돌고 어깨가 따라오는 시간차가 느껴지나요?',
+       opts:['시간차 없이 골반과 어깨가 거의 동시에 돈다','골반이 먼저 열리고 어깨는 잠깐 뒤에 따라온다','어깨가 오히려 먼저 열리는 느낌이다'],
+       note:'Hip-shoulder separation 감각 — B가 이상적. 구속과 가장 강한 상관관계 (Sgroi et al., 2015)'},
+      {id:'q10',badge:'bb',q:'릴리즈 순간 몸통이 어느 방향으로 기울어지나요?',
+       sub:'공이 손에서 떠나는 순간의 상체 기울기를 느껴보세요.',
+       opts:['거의 수직으로 서 있다','앞으로 기울며 글러브 쪽으로도 약간 기운다','뒤로 젖혀진다'],
+       note:'상체 기울기 — B가 이상적 (프로 평균: 전방 36±7°, 측방 23±10°). 기울기 클수록 구속↑ (Solomito et al.)'},
+      {id:'q11',badge:'bb',q:'릴리즈 직전 던지는 팔꿈치 높이가 어깨 라인 대비 어떤가요?',
+       opts:['어깨보다 확연히 낮다 — 팔꿈치가 처진다','어깨 높이와 거의 같거나 약간 위다','어깨보다 많이 높이 올라간다'],
+       note:'팔꿈치 높이 — A(elbow drop)는 UCL varus torque 급증. 이상적 어깨 외전각 90~94° (Fleisig)'},
+      {id:'q12',badge:'bb',q:'착지 직후 앞무릎이 어느 방향을 향하나요?',
+       sub:'착지 직후 앞발 위의 무릎 방향을 느껴보세요.',
+       opts:['발 안쪽(내측)으로 쏠린다','발끝 방향과 일치하거나 약간 바깥이다','발 바깥쪽으로 크게 벌어진다'],
+       note:'착지 무릎 정렬 — A(valgus collapse)는 에너지 누수·ACL 스트레스. 착지 시 45°, 릴리즈 시 30° 굴곡이 이상적'},
+      {id:'q13',badge:'bb',q:'착지 후 앞다리가 어떻게 변화하나요?',
+       opts:['무릎이 더 구부러지며 주저앉는 느낌이다','무릎이 서서히 펴지며 단단히 버텨준다','착지 직후 발뒤꿈치가 먼저 들린다'],
+       note:'앞다리 braking force — B가 이상적. 착지→릴리즈 구간 45°→30° 신전이 하체 에너지를 상체로 전달'},
+      {id:'q14',badge:'bi',q:'팔로우스루(follow-through)에서 던진 팔이 어떻게 감속되나요?',
+       opts:['팔이 갑자기 뚝 끊기거나 멈추는 느낌이다','반대쪽 허벅지나 옆구리 방향으로 부드럽게 내려온다','어깨 앞쪽이나 팔꿈치에 당김이 느껴지며 멈춘다'],
+       note:'감속 제어 — A·C는 이심성 수축 불량 → 회전근개·UCL 이상 부하. 후방 어깨 근육이 1,000N+ 흡수해야 함'},
+      {id:'q15',badge:'bi',q:'릴리즈 순간 손목이 어느 방향을 향하나요?',
+       opts:['손목이 바깥쪽으로 꺾인다','손목이 공 뒤에서 홈 방향을 향한다','손목이 안쪽으로 과하게 말린다'],
+       note:'손목 정렬 — A는 전완 회외 과다로 팔꿈치 내측 스트레스 증가. B가 이상적'},
+    ]
+  },
+  {
+    num:'04', title:'신체 능력 테스트', desc:'실제 테스트 후 답하세요 — MLB·대학 야구 데이터 기반',
+    qs:[
+      {id:'q16',badge:'bv',q:'백스쿼트 1RM (자기 체중 대비)',
+       sub:'아래 기준표를 참고하세요.',
+       bench:[['수준','체중 대비','80kg 예시'],['미달','1.25배 이하','100kg 이하'],['기초','1.25~1.5배','100~120kg'],['준수 ✓','1.5~1.75배','120~140kg'],['우수','1.75~2.0배','140~160kg'],['엘리트 ★','2.0배 이상','160kg+']],
+       opts:['체중의 1.25배 이하 (미달)','체중의 1.25~1.5배 (기초)','체중의 1.5~1.75배 (준수)','체중의 1.75배 이상 (우수·엘리트)'],
+       note:'야구 선수 백스쿼트 기준 Level 3 = 1.5~1.75배, Level 5(엘리트) = 2.0배+ (Atomic Athlete Standards)'},
+      {id:'q17',badge:'bv',q:'데드리프트 1RM (자기 체중 대비)',
+       bench:[['수준','체중 대비','80kg 예시'],['미달','1.5배 이하','120kg 이하'],['기초','1.5~1.75배','120~140kg'],['준수 ✓','1.75~2.0배','140~160kg'],['우수','2.0~2.25배','160~180kg'],['엘리트 ★','2.25배 이상','180kg+']],
+       opts:['체중의 1.5배 이하 (미달)','체중의 1.5~1.75배 (기초)','체중의 1.75~2.0배 (준수)','체중의 2.0배 이상 (우수·엘리트)'],
+       note:'프로 투수 기준선: 데드리프트 ~185kg(405lbs) × 3회 (Elite Baseball Performance)'},
+      {id:'q18',badge:'bb',q:'친업(Chin-up) — 완전 데드행에서 몇 개 가능한가요?',
+       sub:'반동 없이 완전 데드행(팔 완전 신전)에서 시작. 턱이 바 위로 올라와야 1개.',
+       bench:[['수준','개수'],['미달','4개 이하'],['기초','5~7개'],['준수 ✓','8~12개'],['우수','13~15개'],['엘리트 ★','15개+ / 가중 친업']],
+       opts:['4개 이하 (미달)','5~7개 (기초)','8~12개 (준수)','13개 이상 (우수·엘리트)'],
+       note:'광배근은 프로 투수 가속 구간에서 아마추어보다 현저히 높은 활성도 (Cressey). 프로 기준선 8개+'},
+      {id:'q19',badge:'bb',q:'데드행(Dead Hang) 유지 시간',
+       sub:'반동 없이 바에 완전히 매달려 버티는 시간을 측정하세요.',
+       bench:[['수준','시간'],['미달','30초 이하'],['기초','30~60초'],['준수 ✓','60~90초'],['우수','90~120초'],['엘리트 ★','2분+']],
+       opts:['30초 이하 (미달)','30~60초 (기초)','60~90초 (준수)','90초 이상 (우수·엘리트)'],
+       note:'전완·악력·견갑골 안정성·광배근 지구력 동시 측정. 투구 후 어깨 감압 능력 지표'},
+      {id:'q20',badge:'bb',q:'수직 점프 CMJ 높이 (제자리 최대 점프)',
+       sub:'무릎을 굽혔다가 최대한 점프. 3회 중 최고값.',
+       bench:[['수준','높이'],['미달','35cm 이하'],['기초','35~50cm'],['준수 ✓','50~60cm'],['우수','60~70cm'],['엘리트 ★','70cm+ (≈28인치)']],
+       opts:['35cm 이하 (미달)','35~50cm (기초)','50~60cm (준수)','60cm 이상 (우수·엘리트)'],
+       note:'CMJ 평균: 남성 41~50cm, 엘리트 운동선수 70cm+ (MLB 수준). CMJ force = 팔꿈치 부상 위험 예측 (Mayberry et al., n=500+)'},
+      {id:'q21',badge:'bv',q:'제자리 멀리뛰기 (Standing Broad Jump)',
+       sub:'발 모아 최대한 멀리 점프. 3회 중 최고값.',
+       bench:[['수준','거리'],['미달','키보다 40cm+ 짧음'],['기초','키보다 20~40cm 짧음'],['준수 ✓','키와 비슷 (±20cm)'],['우수','키보다 20~30cm 이상'],['엘리트 ★','키보다 40cm+']],
+       opts:['키보다 40cm 이상 짧다 (미달)','키보다 20~40cm 짧다 (기초)','키와 비슷하다 (준수)','키보다 20cm 이상 길다 (우수·엘리트)'],
+       note:'수평 파워 = 구속 예측 변수 (R=0.850, Nakata et al.)'},
+      {id:'q22',badge:'bv',q:'10m 스프린트',
+       sub:'최대 가속으로 10m를 달린다. 스톱워치로 측정.',
+       bench:[['수준','시간'],['미달','2.0초 이상'],['기초','1.8~2.0초'],['준수 ✓','1.65~1.8초'],['우수','1.55~1.65초'],['엘리트 ★','1.55초 이하']],
+       opts:['2.0초 이상 (미달)','1.8~2.0초 (기초)','1.65~1.8초 (준수)','1.65초 이하 (우수·엘리트)'],
+       note:'10m sprint = 신경계 초기 가속·RFD 출력 → 구속 예측 변수 (Mercier et al., 2020)'},
+      {id:'q23',badge:'bb',q:'던지는 손과 반대 손의 악력을 비교해보세요.',
+       sub:'페트병(500ml)을 번갈아 같은 힘으로 쥐거나, 악력계로 측정하세요.',
+       opts:['던지는 손이 반대 손보다 확실히 약하다','양손이 비슷하다','던지는 손이 더 강하다'],
+       note:'악력 = 구속 예측 변수 (R=0.906) + 피로 지표. 75구 후 악력 12.66% 감소 관찰됨 (Tremblay et al., 2025)'},
+    ]
+  },
+  {
+    num:'05', title:'가동성 자가 테스트', desc:'도구 없이 5분 안에 측정 가능',
+    qs:[
+      {id:'q24',badge:'bi',q:'어깨 내회전 비교 테스트 (GIRD 선별)',
+       sub:'등을 바닥에 대고 눕는다 → 양팔을 90° 들고 팔꿈치를 90° 구부린다 → 손을 바닥 방향으로 최대한 돌린다 → 던지는 팔과 반대팔을 비교.',
+       opts:['던지는 팔이 반대쪽보다 확연히 덜 돌아간다','양쪽 차이가 거의 없다','던지는 팔이 오히려 더 잘 돌아간다'],
+       note:'GIRD 선별 — 20° 이상 차이(A)는 어깨·UCL 부상 위험 약 2배 증가 (Wilk et al., 2011, n=170)'},
+      {id:'q25',badge:'bi',q:'투구 다음 날 어깨 뒤쪽 상태는 어떤가요?',
+       opts:['딱딱하게 굳거나 당기는 느낌이 3일 이상 지속된다','1~2일 내로 풀린다','거의 불편함이 없다'],
+       note:'후방 관절낭 긴장 = GIRD 진행 신호. 지속 시 glenohumeral 운동학 변형 → 내부 충돌 위험'},
+      {id:'q26',badge:'bs',q:'흉추 회전 테스트',
+       sub:'의자에 앉아 팔짱을 낀다 → 골반을 고정하고 상체만 좌우로 최대한 돌아본다.',
+       opts:['한쪽이 확연히 덜 돌아간다','양쪽 모두 많이 제한된다','양쪽 대칭적으로 잘 돌아간다'],
+       note:'흉추 회전 제한 = hip-shoulder separation 보상 패턴 → 팔꿈치 부하 전가'},
+      {id:'q27',badge:'bs',q:'고관절 내회전 테스트',
+       sub:'엎드려 양 무릎을 90° 구부린다 → 발을 바깥으로 최대한 벌린다.',
+       opts:['양발이 거의 벌어지지 않는다','한쪽만 잘 된다','양쪽 모두 잘 된다'],
+       note:'고관절 내회전 부족 = 스트라이드 시 골반 회전 제한 → 팔에 부하 전가'},
+      {id:'q28',badge:'bs',q:'발목 가동성 테스트 (Wall Knee Test)',
+       sub:'벽에서 발끝을 약 10cm 띄우고 선다 → 발꿈치를 들지 않고 무릎을 벽에 닿게 굽혀본다.',
+       opts:['무릎이 벽에 닿지 않는다','무릎이 벽에 닿는다'],
+       note:'발목 배굴 제한 = 착지 충격 흡수 불량 → braking force 감소'},
+      {id:'q29',badge:'bi',q:'Cross-body Stretch — 던지는 어깨 뒤쪽 유연성',
+       sub:'던지는 팔을 가슴 앞으로 당겨서 반대 손으로 팔꿈치를 잡고 어깨 뒤쪽을 스트레칭한다.',
+       opts:['던지는 어깨 뒤쪽이 반대쪽보다 훨씬 더 팽팽하다','양쪽이 비슷하게 당긴다','던지는 쪽이 오히려 더 잘 늘어난다'],
+       note:'후방 관절낭 긴장도 직접 확인 — A는 GIRD 위험군'},
+    ]
+  },
+  {
+    num:'06', title:'안정성 & 부하 관리', desc:'코어·회복·투구 습관',
+    qs:[
+      {id:'q30',badge:'bs',q:'한 발 서기 테스트 (눈 감고, 맨발)',
+       opts:['10초 이하','10~30초','30초 이상'],
+       note:'단하지 안정성 = 착지 발 에너지 제어 능력. CMJ 연구에서 낮은 안정성이 팔꿈치 부상 예측 변수 (Mayberry et al.)'},
+      {id:'q31',badge:'bv',q:'플랭크 유지 시간은?',
+       opts:['1분 이하','1~2분','2분 이상'],
+       note:'코어 내압(IAP) 생성 능력 = 운동사슬에서 에너지 누수를 막는 핵심'},
+      {id:'q32',badge:'bi',q:'투구 중 또는 직후 신체 어느 부위가 가장 먼저 불편해지나요?',
+       opts:['팔꿈치 안쪽 (내측)','어깨 앞쪽 또는 뒤쪽','하체 또는 코어 — 팔은 괜찮다'],
+       note:'A = UCL 손상 초기 신호. B = 회전근개·관절와순 스트레스. A·B 해당 시 전문의 평가 권장'},
+      {id:'q33',badge:'bi',q:'지난 1년간 팔꿈치나 어깨 불편함으로 쉰 기간이 있나요?',
+       opts:['2주 이상 쉰 적이 있다','며칠 쉰 적은 있다','쉰 적 없다'],
+       note:'부상 이력 = 재발 위험 예측 변수. 이전 UCL 부상 이력 있는 투수는 재발 위험 유의미하게 증가'},
+      {id:'q34',badge:'bv',q:'구속을 최대로 올리면 제구가 어떻게 변하나요?',
+       opts:['제구가 급격히 무너진다','어느 정도 유지된다','구속이 올라가도 제구가 안정적이다'],
+       note:'힘 전달 효율 + 신경계 안정성 통합 지표'},
+      {id:'q35',badge:'bs',q:'반복 투구 후 피로가 어느 부위에서 먼저 느껴지나요?',
+       opts:['팔·어깨가 먼저 지친다','하체가 먼저 지친다','전신이 고르게 지친다'],
+       note:'팔 먼저 피로 = 하체 운동사슬 미완성, 팔 과부하 집중 구조'},
+      {id:'q36',badge:'bi',q:'1년에 실제로 공을 던지는 기간은?',
+       opts:['10개월 이상','7~9개월','6개월 이하'],
+       note:'연 100이닝 초과 = 심각 부상 위험 3.5배 증가 (AJSM, 2006). 비시즌 최소 2~3개월 완전 휴식 필수'},
+    ]
+  }
+];
+
+const BADGE_STYLE = {
+  bv:{label:'구속',cls:'badge-vel'},
+  bi:{label:'부상예방',cls:'badge-inj'},
+  bb:{label:'구속+부상예방',cls:'badge-both'},
+  bs:{label:'안정성',cls:'badge-stab'},
+};
+
+const answers = {};
+const TOTAL = SECTIONS.reduce((a,s)=>a+s.qs.length,0);
+
+function benchHtml(rows){
+  if(!rows) return '';
+  const head = rows[0].map(h=>`<th>${h}</th>`).join('');
+  const body = rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+  return `<div class="bench-wrap"><table class="bench-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function render(){
+  const container = document.getElementById('questions');
+  container.innerHTML = '';
+  let qNum = 0;
+  SECTIONS.forEach(sec=>{
+    const sd = document.createElement('div');
+    sd.className = 'section';
+    sd.innerHTML = `<div class="sec-header">
+      <span class="sec-num">${sec.num}</span>
+      <span class="sec-title">${sec.title}</span>
+      <span class="sec-desc">${sec.desc}</span>
+    </div>`;
+    sec.qs.forEach(q=>{
+      qNum++;
+      const n = qNum;
+      const b = BADGE_STYLE[q.badge];
+      const card = document.createElement('div');
+      card.className = `q-card${answers[q.id]!==undefined?' answered':''}`;
+      card.id = `card-${q.id}`;
+      const opts = q.opts.map((o,i)=>
+        `<button class="opt${answers[q.id]===i?' sel':''}" onclick="pick('${q.id}',${i},this)">
+          <span class="opt-k">${String.fromCharCode(65+i)}</span>
+          <span>${o}</span>
+        </button>`).join('');
+      card.innerHTML = `
+        <div class="q-meta">
+          <span class="q-num">Q${n}</span>
+          <span class="q-badge badge ${b.cls}">${b.label}</span>
+        </div>
+        <div class="q-text">${q.q}</div>
+        ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+        ${q.bench?benchHtml(q.bench):''}
+        <div class="opts">${opts}</div>
+        ${q.note?`<div class="q-note">📌 ${q.note}</div>`:''}`;
+      sd.appendChild(card);
+    });
+    container.appendChild(sd);
+  });
+  updateProgress();
+}
+
+function pick(id,val,el){
+  answers[id] = val;
+  el.closest('.opts').querySelectorAll('.opt').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  const card = document.getElementById(`card-${id}`);
+  if(card) card.classList.add('answered');
+  updateProgress();
+}
+
+function updateProgress(){
+  const done = Object.keys(answers).length;
+  const pct = Math.round(done/TOTAL*100);
+  document.getElementById('prog-txt').textContent = `${done} / ${TOTAL}`;
+  document.getElementById('prog-fill').style.width = `${pct}%`;
+  document.getElementById('submit-btn').disabled = done < TOTAL;
+}
+
+const SCORE_MAP = {
+  q1:{inj:[0,1,0.5]}, q2:{inj:[0,1,0.5]}, q3:{inj:[0,1]}, q4:{inj:[0,1,0]},
+  q5:{vel:[0,1,0.5],seq:[0,1,0.5]}, q6:{vel:[0,1,0.5],seq:[0,1,0.5]},
+  q7:{vel:[0,1,0.5],seq:[0.5,1,0]}, q8:{vel:[0,1,0.5],inj:[0,1,0.5],seq:[0,1,0.5]},
+  q9:{vel:[0,1,0],inj:[0,1,0],seq:[0,1,0]}, q10:{vel:[0,1,0],seq:[0,1,0]},
+  q11:{vel:[0.5,1,0],inj:[0,1,0],seq:[0.5,1,0]},
+  q12:{vel:[0.5,1,0],inj:[0,1,0.5],seq:[0.5,1,0]},
+  q13:{vel:[0,1,0],seq:[0,1,0]}, q14:{vel:[0,1,0],inj:[0,1,0]}, q15:{vel:[0.5,1,0],inj:[0,1,0]},
+  q16:{power:[0,0.33,0.67,1],vel:[0,0.33,0.67,1]},
+  q17:{power:[0,0.33,0.67,1],vel:[0,0.33,0.67,1]},
+  q18:{power:[0,0.33,0.67,1],vel:[0,0.33,0.67,1]},
+  q19:{power:[0,0.33,0.67,1],stab:[0,0.33,0.67,1]},
+  q20:{power:[0,0.33,0.67,1],vel:[0,0.33,0.67,1]},
+  q21:{power:[0,0.33,0.67,1],vel:[0,0.33,0.67,1]},
+  q22:{power:[0,0.33,0.67,1],vel:[0,0.33,0.67,1]},
+  q23:{vel:[0,0.5,1],inj:[0,1,0.5]},
+  q24:{mob:[0,1,0.5],inj:[0,1,0.5]}, q25:{mob:[0,0.5,1],inj:[0,0.5,1]},
+  q26:{mob:[0,0.5,1]}, q27:{mob:[0,0.5,1]}, q28:{mob:[0,1]},
+  q29:{mob:[0,0.5,1],inj:[0,0.5,1]},
+  q30:{stab:[0,0.5,1]}, q31:{stab:[0,0.5,1],vel:[0,0.5,1]},
+  q32:{inj:[0,0,1]}, q33:{inj:[0,0.5,1]},
+  q34:{vel:[0,0.5,1],stab:[0,0.5,1]},
+  q35:{vel:[0.5,1,1],stab:[0,0.5,1]},
+  q36:{inj:[0,0.5,1]},
+};
+
+function calcScores(){
+  const axes = {vel:{s:0,m:0},inj:{s:0,m:0},power:{s:0,m:0},mob:{s:0,m:0},stab:{s:0,m:0},seq:{s:0,m:0}};
+  Object.entries(SCORE_MAP).forEach(([k,v])=>{
+    const a = answers[k];
+    if(a===undefined) return;
+    Object.entries(v).forEach(([axis,w])=>{
+      if(!w||!axes[axis]) return;
+      const score = Array.isArray(w)?w[Math.min(a,w.length-1)]:w;
+      const max = Array.isArray(w)?Math.max(...w):w;
+      axes[axis].s += score; axes[axis].m += max;
+    });
+  });
+  const out = {};
+  Object.entries(axes).forEach(([k,v])=>{ out[k] = v.m>0?Math.round(v.s/v.m*100):0; });
+  return out;
+}
+
+function bc(p){ return p>=70?'#47ff8a':p>=45?'#4488ff':'#ff4444'; }
+
+function drawRadar(sc){
+  const canvas = document.getElementById('radarChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = 300;
+  const H = canvas.height = 300;
+  const cx = W/2, cy = H/2, R = 110;
+  const labels = ['구속\n잠재력','부상\n안전도','하체\n파워','가동성','안정성','메카닉\n효율'];
+  const vals = [sc.vel,sc.inj,sc.power,sc.mob,sc.stab,sc.seq].map(v=>v/100);
+  const N = 6;
+  ctx.clearRect(0,0,W,H);
+
+  // grid
+  for(let r=1;r<=4;r++){
+    ctx.beginPath();
+    for(let i=0;i<N;i++){
+      const ang = (Math.PI*2*i/N)-Math.PI/2;
+      const x = cx + Math.cos(ang)*R*(r/4);
+      const y = cy + Math.sin(ang)*R*(r/4);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // spokes
+  for(let i=0;i<N;i++){
+    const ang = (Math.PI*2*i/N)-Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(ang)*R, cy+Math.sin(ang)*R);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // data fill
+  ctx.beginPath();
+  vals.forEach((v,i)=>{
+    const ang = (Math.PI*2*i/N)-Math.PI/2;
+    const x = cx + Math.cos(ang)*R*v;
+    const y = cy + Math.sin(ang)*R*v;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(232,255,71,0.12)';
+  ctx.fill();
+  ctx.strokeStyle = '#e8ff47';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // dots
+  vals.forEach((v,i)=>{
+    const ang = (Math.PI*2*i/N)-Math.PI/2;
+    const x = cx + Math.cos(ang)*R*v;
+    const y = cy + Math.sin(ang)*R*v;
+    ctx.beginPath();
+    ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle = '#e8ff47';
+    ctx.fill();
+  });
+
+  // labels
+  ctx.font = '500 11px DM Sans, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.textAlign = 'center';
+  labels.forEach((l,i)=>{
+    const ang = (Math.PI*2*i/N)-Math.PI/2;
+    const dist = R + 22;
+    const x = cx + Math.cos(ang)*dist;
+    const y = cy + Math.sin(ang)*dist;
+    const lines = l.split('\n');
+    lines.forEach((line,li)=>{
+      ctx.fillText(line, x, y + li*14 - (lines.length-1)*7);
+    });
+  });
+}
+
+function getWeeklyProgram(sc, seq){
+  const prog = {
+    power: sc.power < 45,
+    mob: sc.mob < 45,
+    seq: seq,
+    stab: sc.stab < 45,
+  };
+
+  if(prog.power && prog.mob){
+    return [
+      {day:'MON / THU',items:['백스쿼트 4×5 (점진적 과부하)','루마니안 데드리프트 3×8','싱글레그 스쿼트 3×8 (각 방향)']},
+      {day:'TUE / FRI',items:['Sleeper Stretch 3×30초','흉추 회전 스트레칭 2×10회','고관절 내회전 스트레칭 2×30초','Cross-body Stretch 2×30초']},
+      {day:'WED / SAT',items:['친업 3×max','데드행 3×60초','플랭크 3×60초','메디신볼 회전 드릴 3×10']},
+      {day:'매일 (투구 전)',items:['가동성 루틴 10분','Sleeper Stretch','고관절 활성화']},
+    ];
+  } else if(prog.power){
+    return [
+      {day:'MON / THU',items:['백스쿼트 4×5','트랩바 데드리프트 3×6','CMJ 점프 4×5']},
+      {day:'TUE / FRI',items:['친업 4×max','데드행 3×60초','싱글레그 RDL 3×8']},
+      {day:'WED',items:['10m 스프린트 6×','제자리 멀리뛰기 5×','메디신볼 스쿱 토스 4×8']},
+    ];
+  } else if(prog.mob){
+    return [
+      {day:'매일 아침 (15분)',items:['Sleeper Stretch 3×30초','Cross-body Stretch 2×30초','흉추 회전 스트레칭 2×10회','고관절 내회전 스트레칭 2×30초','Wall Ankle Mobility 2×10회']},
+      {day:'MON / WED / FRI',items:['친업 3×max','플랭크 3×2분','메디신볼 회전 드릴 3×10','싱글레그 스쿼트 3×8']},
+    ];
+  } else if(prog.seq){
+    return [
+      {day:'타이밍 드릴 (주 4회)',items:['거울 앞 슬로우 모션 투구 반복','착지 순간 골반 방향 인지 드릴','Half-kneeling 메디신볼 회전','Hip-shoulder separation 드릴']},
+      {day:'MON / THU',items:['친업 3×max','데드행 3×60초','플랭크 3×2분']},
+    ];
+  } else {
+    return [
+      {day:'유지 프로그램',items:['스쿼트 3×5 (강도 유지)','친업 3×max','메디신볼 회전 드릴 3×10']},
+      {day:'가동성 루틴 (주 3회)',items:['Sleeper Stretch 2×30초','흉추 스트레칭 2×10회','고관절 루틴 2×30초']},
+      {day:'워크로드 관리',items:['주당 투구 구수 기록','등판 간격 최소 4일 확보','피로 지표 모니터링']},
+    ];
+  }
+}
+
+function showResult(){
+  const sc = calcScores();
+  const earlyOpen = answers.q8===0 || answers.q9===2;
+  const armFirst = answers.q9===2 || answers.q11===0;
+  const gird = answers.q24===0 || answers.q25===0 || answers.q29===0;
+  const scapDys = answers.q3===0;
+  const injHistory = answers.q33===0;
+  const armPain = answers.q32===0 || answers.q32===1;
+  const overuse = answers.q36===0;
+  const seq = earlyOpen || armFirst;
+
+  let type, desc, risks=[], fixes=[];
+  if(seq && sc.power < 45){
+    type='TYPE 1 — 팔 주도 + 파워 부족형';
+    desc='착지 전에 몸이 열리고 팔이 먼저 나가는 패턴에 하체 파워까지 부족합니다. 팔꿈치·어깨에 모든 부하가 집중되는 가장 위험한 패턴이며 구속 잠재력도 크게 제한됩니다.';
+    risks=['UCL 과부하 — elbow varus torque 급증','어깨 가속·감속 과부하','구속 잠재력 심각하게 제한'];
+    fixes=['뒷발 수평 추진력 드릴 (매일)','골반 선행 회전 훈련','스쿼트 체중 1.5배 우선 달성','착지 타이밍 지연 드릴'];
+  } else if(seq && sc.power >= 45){
+    type='TYPE 2 — 팔 주도 + 파워 있는 형';
+    desc='하체 힘은 있지만 타이밍이 너무 빠릅니다. 구속은 어느 정도 나오지만 hip-shoulder separation이 소멸되어 장기 부상 위험이 높습니다.';
+    risks=['조기 개방 → hip-shoulder separation 소멸','UCL varus torque 누적 증가','장기 팔꿈치 손상 위험'];
+    fixes=['착지 순간 골반 각도 인지 드릴','Hip-shoulder separation 드릴 (영상 피드백)','코어 회전 지연 운동'];
+  } else if(!seq && sc.mob < 45){
+    type='TYPE 3 — 하체 주도 + 가동성 제한형';
+    desc='운동사슬 순서는 좋지만 고관절·흉추·어깨 가동성이 부족해 힘 전달에 누수가 생기고 보상 패턴이 발생합니다.';
+    risks=['가동성 제한으로 힘 전달 손실','보상 패턴 → GIRD 위험 증가','흉추 제한 → 팔꿈치 부하 전가'];
+    fixes=['고관절 내회전 가동성 루틴 (매일)','Sleeper Stretch + Cross-body Stretch','흉추 회전 가동성 운동'];
+  } else if(!seq && sc.stab < 45){
+    type='TYPE 4 — 효율적이지만 안정성 부족형';
+    desc='타이밍과 가동성은 좋지만 착지 후 안정성이 부족해 피로 시 폼이 흔들립니다.';
+    risks=['착지 braking force 부족','피로 저항성 낮음','후반 이닝 폼 붕괴·제구 저하'];
+    fixes=['싱글레그 스쿼트 강화','플랭크 2분+ 달성','착지 발 안정화 드릴','데드행 지구력 훈련'];
+  } else {
+    type='TYPE 5 — 효율적 운동사슬형 (Elite Profile)';
+    desc='파워·가동성·안정성·타이밍이 균형 잡힌 이상적인 프로파일입니다.';
+    risks=overuse?['연간 투구 부하 과다 관리 필요']:['현재 특이 위험 신호 없음'];
+    fixes=['워크로드 주기화 (피크·회복)','릴리즈 포인트 미세 최적화','정기 가동성 유지 루틴'];
+  }
+
+  const alerts = [];
+  if(gird) alerts.push(`<div class="alert alert-red">⚠️ GIRD / 후방 관절낭 긴장 의심 — 던지는 어깨 내회전이 현저히 감소했거나 투구 후 후방 어깨 뻣뻣함이 지속됩니다. 어깨·UCL 부상 위험 약 2배 증가 (Wilk et al., 2011). Sleeper Stretch + Cross-body Stretch를 즉시 시작하고 전문의 평가를 권장합니다.</div>`);
+  if(scapDys) alerts.push(`<div class="alert alert-red">⚠️ 견갑골 이상운동 의심 — 한쪽 어깨뼈가 비대칭적으로 튀어나와 있습니다. 어깨 부상 위험 25~43% 증가 (Hickey et al., 2018). 전거근·하부 승모근 강화를 즉시 시작하세요.</div>`);
+  if(armPain) alerts.push(`<div class="alert alert-red">⚠️ 팔꿈치·어깨 통증 감지 — 특히 팔꿈치 안쪽 통증은 UCL 손상 초기 징후일 수 있습니다. 통증이 2일 이상 지속되면 즉시 투구를 중단하고 전문의 평가를 받으세요.</div>`);
+  if(injHistory) alerts.push(`<div class="alert alert-amber">⚠️ 부상 이력 있음 — 과거 팔꿈치·어깨 부상 이력이 있는 투수는 재발 위험이 유의미하게 높습니다. 부하 증가 시 특히 주의하세요.</div>`);
+  if(overuse) alerts.push(`<div class="alert alert-amber">⚠️ 연중무휴 투구 패턴 — 비시즌 없이 던지는 것은 UCL 부상 위험을 크게 높입니다. 최소 2개월 완전 휴식을 확보하세요.</div>`);
+  if(!alerts.length) alerts.push(`<div class="alert alert-green">✅ 주요 급성 위험 신호 없음 — 정기적인 자기 모니터링을 유지하세요.</div>`);
+
+  const axesList = [
+    {label:'구속 잠재력', val:sc.vel, key:'vel'},
+    {label:'부상 안전도', val:sc.inj, key:'inj'},
+    {label:'하체 파워',   val:sc.power, key:'power'},
+    {label:'가동성',      val:sc.mob, key:'mob'},
+    {label:'안정성',      val:sc.stab, key:'stab'},
+    {label:'메카닉 효율', val:sc.seq, key:'seq'},
+  ];
+
+  const axTxt = {
+    vel:{hi:'운동사슬이 효율적으로 작동합니다. 릴리즈 포인트 미세 조정으로 추가 향상 가능합니다.',mid:'일부 구간에서 힘 누수가 있습니다. 타이밍과 파워를 함께 개선하면 명확한 변화가 나타납니다.',lo:'힘 전달 구조에 복수의 비효율이 있습니다. 기초 메카닉스부터 재점검이 필요합니다.'},
+    inj:{hi:'현재 바이오메카닉스 패턴은 상대적으로 안전합니다.',mid:'일부 위험 패턴이 존재합니다. 타이밍·감속 제어를 우선 점검하세요.',lo:'UCL·어깨 과부하 패턴이 다수 발견됩니다. 전문가 점검을 강력히 권장합니다.'},
+    power:{hi:'구속을 위한 충분한 파워 베이스가 갖춰져 있습니다.',mid:'스쿼트 1.5배, CMJ 50cm+, 멀리뛰기 키 이상을 6개월 목표로 설정하세요.',lo:'파워가 구속의 병목입니다. 스쿼트·데드리프트·친업을 최우선 훈련으로 시작하세요.'},
+    mob:{hi:'고관절·흉추·어깨 가동성이 양호합니다.',mid:'일부 제한 부위에 집중 개입이 필요합니다. 매일 10분 가동성 루틴을 시작하세요.',lo:'가동성 제한이 힘 전달과 부상 위험 모두에 영향을 주고 있습니다. 매일 15분 루틴이 필수입니다.'},
+    stab:{hi:'코어와 착지 안정성이 우수합니다.',mid:'착지 또는 코어 안정성 중 한 부분 보완이 필요합니다.',lo:'안정성 부족이 폼 일관성을 방해합니다. 플랭크·싱글레그·데드행 훈련을 즉시 시작하세요.'},
+    seq:{hi:'착지 타이밍·골반 선행 회전·팔 경로가 효율적입니다.',mid:'일부 타이밍 또는 착지 구조에 비효율이 있습니다.',lo:'운동사슬 순서에 다수의 비효율이 있습니다. 기초 타이밍 드릴부터 재점검이 필요합니다.'},
+  };
+
+  const legendCards = axesList.map(a=>
+    `<div class="rl-item">
+      <div class="rl-label">${a.label}</div>
+      <div class="rl-val" style="color:${bc(a.val)}">${a.val}</div>
+    </div>`).join('');
+
+  const detailLines = axesList.map(a=>{
+    const t = a.val>=70?axTxt[a.key].hi:a.val>=45?axTxt[a.key].mid:axTxt[a.key].lo;
+    return `<b>${a.label} (${a.val}점)</b> — ${t}<br><br>`;
+  }).join('');
+
+  const weeklyProg = getWeeklyProgram(sc, seq);
+  const dayCards = weeklyProg.map(d=>
+    `<div class="day-card">
+      <div class="day-label">${d.day}</div>
+      <ul class="day-items">${d.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+    </div>`).join('');
+
+  document.getElementById('result').innerHTML = `
+    <div class="result">
+      <div class="r-hero">
+        <div class="r-label">Assessment Result</div>
+        <div class="r-type">${type}</div>
+        <div class="r-desc">${desc}</div>
+      </div>
+
+      <div class="radar-wrap">
+        <div class="radar-title">Performance Profile</div>
+        <canvas id="radarChart"></canvas>
+        <div class="radar-legend">${legendCards}</div>
+      </div>
+
+      ${alerts.join('')}
+
+      <div class="tag-row">
+        <div class="tag-lbl">위험 요인</div>
+        ${risks.map(r=>`<span class="tag tag-risk">${r}</span>`).join('')}
+      </div>
+      <div class="tag-row" style="margin-top:12px;margin-bottom:20px">
+        <div class="tag-lbl">우선 개선 방향</div>
+        ${fixes.map(f=>`<span class="tag tag-fix">${f}</span>`).join('')}
+      </div>
+
+      <div class="detail-block">
+        <div class="detail-header">영역별 세부 분석</div>
+        <div class="detail-body">${detailLines}</div>
+      </div>
+
+      <div class="detail-block">
+        <div class="detail-header">맞춤 주간 훈련 프로그램</div>
+        <div class="program-grid">${dayCards}</div>
+      </div>
+
+      <div class="feedback-block">
+        <div class="feedback-title">이 결과가 도움이 되었나요?</div>
+        <div class="feedback-desc">짧은 피드백을 남겨주시면 평가 시스템 개선에 큰 도움이 됩니다.<br>1분이면 충분합니다.</div>
+        <a class="feedback-btn" href="https://docs.google.com/forms/d/e/1FAIpQLSfgpUCrcO9R3TXsFmU6AtcnvBgaTEJxWokNUn0988tr9JmtdQ/viewform" target="_blank">피드백 남기기 →</a>
+      </div>
+
+      <button class="reset-btn" onclick="resetAll()">↩ 다시 평가하기</button>
+    </div>`;
+
+  document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
+  setTimeout(()=>drawRadar(sc), 100);
+}
+
+function resetAll(){
+  Object.keys(answers).forEach(k=>delete answers[k]);
+  document.getElementById('result').innerHTML = '';
+  render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+render();
+</script>
+</body>
+</html>
